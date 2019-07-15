@@ -1,129 +1,47 @@
-// TODO:
-// 1) Only one css add
-// 2) Work with child component and unique elements
-// 3)
-function MiniFramework () {
-
-}
-
-MiniFramework.extend = function (Class) {
-  Class.prototype = Object.create(MiniFramework.prototype);
-  Class.prototype.constructor = Class;
-};
-
-MiniFramework.prototype.save_mount_id = function (id) {
-  this._mount_id = id;
-};
-
-
-MiniFramework.prototype.get_mount_id = function () {
-  return this._mount_id;
-};
-
-MiniFramework.register = function (components, hash_components) {
-  hash_components = hash_components || {};
-  for (var i = 0, l = components.length; i < l; i++) {
-    var component = components[i];
-    var component_name = component.get_component_name().toLowerCase();
-    if (hash_components[component_name]) {
-      throw new Error('Already register component '+component_name);
-    }
-    hash_components[component_name] = component;
-
-    if (component.get_css) {
-      W.addCss(component.get_css());
-    }
-  }
-
-  D.body.addEventListener('click', function (e) {
-    var t = getTarget(e);
-    var action = t.getAttribute('data-mini-frm-action')
-
-    if (!action) {
-      return;
-    }
-
-    var parts = action.split('->');
-    var event = parts[0];
-    var class_name_and_method = parts[1];
-    if (event !== 'click') {
-      return;
-    }
-
-    parts = class_name_and_method.split('#');
-    var component_name = parts[0];
-    var method_name = parts[1];
-    var argv = [ e ];
-
-    var res = MiniFramework.$_parse_argv(method_name, argv);
-    method_name = res.method_name;
-    argv = res.argv;
-
-
-    var component = hash_components[component_name];
-    if (!component) {
-      return console.error('Not found components "'+component_name+'"');
-    }
-    console.log(component_name, method_name, argv);
-    if (!component[method_name]) {
-      return console.error('Not found method = '+component_name+'.'+method_name+' from component ', component);
-    }
-    component[method_name].apply(component, argv);
-  });
-
-
-  return hash_components;
-};
-
-/**
- * $_parse_argv - if exist params in data-mini-frm-action then parse arguments else nothing
- * NOT SUPPORT object in params(like JSON.stringify({ 1: true, 2})), becuse spit by ','
- * @example - data-mini-frm-action="click->bank_list#add('+id+')"
- * @param  {string} method_name - 'bank_list#add(input_add_bank)'
- * @param  {Array[ Event ]} argv
- * @return {{ method_name: string, argv: Array[ Event ], }}
- */
-MiniFramework.$_parse_argv = function (method_name, argv) {
-  if (/\(|\)/.test(method_name)) {
-    console.log('HERE');
-    parts = method_name.split('(');
-    method_name = parts[0];
-    params = parts[1].replace(/\)$/, '');
-    argv = argv.concat(params.split(','));
-  }
-  return { method_name: method_name, argv };
-};
-
-
+var MyFrm = window.MyFrm;
 
 function Input_add_bank() {
-  MiniFramework.call(this);
+  var me = this;
 
-  this.get_component_name = function () {
+  MyFrm.call(this);
+
+  me.get_component_name = function () {
     return 'Input_add_bank';
   };
 
-  this.get_css =function () {
+  me.get_css =function () {
     return '.input{width:300px;padding:5px 0 }';
   };
 
+  me.hide_error = function () {
+    getByID(me._error_id).innerHTML = '';
+    getByID(me.input_id).style.borderColor = '';
+  };
 
-  this.render = function () {
-    var id = this.get_mount_id()+'_input';
-    getByID(this.get_mount_id()).innerHTML = (
+  me.show_error = function (msg) {
+    getByID(me._error_id).innerHTML = msg;
+    getByID(me.input_id).style.borderColor = 'red';
+  };
+
+  me.render = function () {
+    me.input_id = me.get_mount_id()+'_input';
+    me._error_id = me.get_mount_id()+'_error';
+    getByID(me.get_mount_id()).innerHTML = (
       '<div>'+
         '<label for="">Добавить банк</label><br/>'+
-        '<input id='+id+' class=input type="text" value=""/>'+
-        '<button data-mini-frm-action="click->bank_list#add('+id+')" type=button>Add</button>'+
+        '<input id='+me.input_id+' class=input type="text" value=""/>'+
+        '<p id='+me._error_id+' style=color:red></p>'+
+        '<button '+me.action('click->bank_list#add('+me.input_id+')')+' type=button>Add</button>'+
       '</div>'
     );
   };
 }
-MiniFramework.extend(Input_add_bank);
+MyFrm.extend_class(Input_add_bank);
 
 
-function Bank_list() {
-  MiniFramework.call(this);
+function Bank_list(input_add_bank) {
+  var me = this;
+  MyFrm.call(this);
 
   this.get_component_name = function () {
     return 'bank_list';
@@ -137,21 +55,27 @@ function Bank_list() {
   };
 
   this.add = function (e, id) {
+    input_add_bank.hide_error();
+
     var bank_name = getByID(id).value;
+    if (!bank_name) {
+      return input_add_bank.show_error('* Не указан банк');
+    }
     this.list.push({
       id: this.list.length,
       name: bank_name,
     });
     this.render(this.list);
+    getByID(id).value = '';
   };
 
-  this.remove = function (e, b) {
+  this.remove = function (e) {
     var t = getTarget(e);
     var bank_id = parseInt(t.getAttribute('data-bank-id'), 10);
-    console.log('remove', t, t.getAttribute('data-bank-id'));
+    MyFrm.logger('remove', t, t.getAttribute('data-bank-id'));
 
-    this.list = this.list.filter(el => {
-      return bank_id !== el.id
+    this.list = this.list.filter(function(el) {
+      return bank_id !== el.id;
     });
     this.render(this.list);
   };
@@ -160,49 +84,56 @@ function Bank_list() {
     this.list = list;
     getByID(this.get_mount_id()).innerHTML = (
       '<div>'+
-        list.map(el => {
-          return '<p class=bank_name>'+el.name+' <span data-bank-id='+el.id+' data-mini-frm-action="click->bank_list#remove" class=cross>X</span></p>';
+        list.map(function(el) {
+          return '<p class=bank_name>'+el.name+' <span data-bank-id='+el.id+' '+me.action('click->bank_list#remove')+' class=cross>X</span></p>';
         }).join('')+
       '</div>'
     );
   };
 }
-MiniFramework.extend(Bank_list);
+MyFrm.extend_class(Bank_list);
 
 
 function Date_picker() {
-  MiniFramework.call(this);
+  var me = this;
+  MyFrm.call(this);
 
   this.get_component_name = function () {
     return 'Date_picker';
   };
 
 
-  this.render = function (list) {
+  this.render = function () {
     getByID(this.get_mount_id()).innerHTML = (
-        `<div>
-          <button type="button" data-mini-frm-action="click->date_picker#wrong_method">Another module</button>
-        </div>`
+      '<div>'+
+        '<button type="button" '+me.action('click->date_picker#not_exist')+'>Another module</button>'+
+      '</div>'
     );
   };
 }
-MiniFramework.extend(Date_picker);
+MyFrm.extend_class(Date_picker);
 
 
 var input_add_bank = new Input_add_bank();
-var bank_list = new Bank_list();
+var bank_list = new Bank_list(input_add_bank);
 
-var HASH_COMPONENTS = MiniFramework.register([ bank_list, input_add_bank ]);
-console.log(HASH_COMPONENTS);
+input_add_bank.set_mount_id('add_bank');
+bank_list.set_mount_id('list_bank');
 
-var date_picker =  new Date_picker();
-var HASH_COMPONENTS_2 = MiniFramework.register([ date_picker ]);
-date_picker.save_mount_id('date_picker');
+
+var HASH_COMPONENTS = MyFrm.register([ bank_list, input_add_bank ]);
+MyFrm.logger(HASH_COMPONENTS);
+
+MyFrm.register_events(HASH_COMPONENTS);
+
+var date_picker = new Date_picker();
+var HASH_COMPONENTS_2 = MyFrm.register([ date_picker ]);
+date_picker.set_mount_id('date_picker');
 date_picker.render();
 
+MyFrm.register_events(HASH_COMPONENTS_2);
 
-input_add_bank.save_mount_id('add_bank');
-bank_list.save_mount_id('list_bank');
+
 
 input_add_bank.render();
 bank_list.render([{
