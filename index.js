@@ -146,3 +146,6 @@ bank_list.render([{
   id: 3,
   name: 'Коммерцбанк'
 }]);
+
+
+
