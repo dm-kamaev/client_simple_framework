@@ -1,41 +1,78 @@
+/**
+ * Observable
+ * @param {any} value
+ */
 function Observable(value) {
   var me = this;
-  var listeners = [];
+  var _listeners = [];
 
-  function notify(newValue) {
-    listeners.forEach(function(listener) {
-      listener(newValue);
+  /**
+   * notify
+   * @param  {any} new_value
+   */
+  function notify(new_value) {
+    _listeners.forEach(function(listener) {
+      listener(new_value);
     });
   }
 
-  me.set = function (newValue) {
-    if (arguments.length && newValue !== value) {
-      value = newValue;
-      notify(newValue);
+  /**
+   * set - set new value and dispatch lsiteners
+   * @param {any} new_value
+   */
+  me.set = function (new_value) {
+    if (arguments.length && new_value !== value) {
+      value = new_value;
+      notify(new_value);
     }
   };
 
+
+  /**
+   * get
+   * @return {any}
+   */
   me.get = function () {
     return value;
   };
 
+
+  /**
+   * subscribe - add listener
+   * @param  {function(new_value: any)} listener
+   */
   me.subscribe = function(listener) {
-    listeners.push(listener);
+    _listeners.push(listener);
   };
 
 }
 
-function InputBinder(id) {
+/**
+ * Input_bind
+ * @param {string} id - input id
+ */
+function Input_bind(id) {
   var me = this;
 
-  me.get_id = function () {
-    return id;
-  };
+  /**
+   * load_state - from DOM tree
+   * @param  {Observable} observable
+   */
+  function load_state(observable) {
+    observable.set(getByID(id).value);
+  }
 
-
+  /**
+   * bind_value
+   * @param  {[Observable]} observable
+   * @return {Observable}
+   */
   me.bind_value = function (observable) {
+    observable = observable || new Observable();
+
     var $input = getByID(id);
-    $input.value = observable.get();
+
+    load_state(observable);
 
     observable.subscribe(function() {
       $input.value = observable.get();
@@ -44,90 +81,75 @@ function InputBinder(id) {
     $input.addEventListener('input', function() {
       observable.set($input.value);
     });
+
+    return observable;
   };
 }
 
 
-
-function RadioBinder(id) {
+/**
+ * Radio_bind
+ * @param {string} id - id for element which unite groups radio elements
+ * @param {Array<{ id: string }>} els
+ */
+function Radio_bind(id, els) {
   var me = this;
 
-  me.get_id = function () {
-    return id;
-  };
-
-  me.load_state = function (obs_radio_buttons) {
-    var $list = getByID(id).querySelectorAll('input[type=radio]');
+  /**
+   * load_state - from DOM tree
+   * @param  {Observable} observable
+   */
+  function load_state(obs_radio_buttons) {
     var res = [];
-    for (var i = 0, l = $list.length; i < l; i++) {
-      var $el = $list[i];
-      console.log($el.getAttribute('checked'));
+    for (var i = 0, l = els.length; i < l; i++) {
+      var $el = getByID(els[i].id);
       res.push({
         id: $el.id,
         value: $el.value,
         checked: $el.checked
       });
     }
-    console.log('SET', res);
     obs_radio_buttons.set(res);
-  };
+  }
 
+
+  /**
+   * bind_value
+   * @param  {[Observable]} observable
+   * @return {Observable}
+   */
   me.bind_value = function (observable) {
-    // var $radio_buttons = getByID(id);
-    // var $list = $radio_buttons.querySelectorAll('input[type=radio]');
-    // var list = observable.get();
-    // for (var i = 0, l = list.length; i < l; i++) {
-    //   var el = list[i];
-    //   console.log($list[i].value, el.value);
-    //   if ($list[i].value === el.value) {
-    //     console.log('HERE');
-    //     $list[i].checked = true;
-    //   }
-    // }
-    // input.value = observable.get();
+    observable = observable || new Observable();
+    load_state(observable);
 
-    // observable.subscribe(function() {
-    //   input.value = observable.get();
-    // });
+    observable.subscribe(function() {
+      observable.get().forEach(function (el) {
+        getByID(el.id).checked = el.checked;
+      });
+    });
 
     getByID(id).addEventListener('click', function(e) {
       var t = getTarget(e);
-      console.log(t);
       if (t.value) {
-        me.load_state(observable);
-        // console.log(t.value);
-        // observable.get().map(function(el) {
-        //   if (el.id === t.id) {
-        //     el.checked = true;
-        //   }
-        //   return el;
-        // });
+        load_state(observable);
       }
-      // observable.set(input.value);
     });
+
+    return observable;
   };
 }
 
-// function bindValue(input, observable) {
-//   input.value = observable();
-//   observable.subscribe(function() {
-//     input.value = observable();
-//   });
-//   input.addEventListener('input', function() {
-//     observable(input.value);
-//   });
-// }
 
+// Куда регистрируем все элементы c ленивым data-bind
 var hashRegisterElements = {};
 
-hashRegisterElements['bind_input'] = new InputBinder('bind_input');
+hashRegisterElements['bind_input'] = new Input_bind('bind_input');
 
-var obs_val = new Observable(3);
-
-hashRegisterElements['bind_input'].bind_value(obs_val);
+var obs_val = hashRegisterElements['bind_input'].bind_value();
 
 obs_val.subscribe(function(val) {
   console.log('new value=', val);
+  // TODO: maybe delegate methods to class Input_bind
   if (!/^\d+$/.test(val)) {
     getByID('bind_input_error').innerHTML = '* Введите число';
     getByID('bind_input').style.borderColor = 'red';
@@ -139,17 +161,19 @@ obs_val.subscribe(function(val) {
 
 
 // setInterval(function() {
-//   obs_val.set(Math.random());
+//   obs_val.set(Math.random()+1000);
 // }, 1000);
 
 
-hashRegisterElements['bind_radio_buttons'] = new RadioBinder('bind_radio_buttons');
+hashRegisterElements['bind_radio_buttons'] = new Radio_bind('bind_radio_buttons', [{
+  id: 'bind_radio_buttons_1',
+}, {
+  id: 'bind_radio_buttons_2',
+}, {
+  id: 'bind_radio_buttons_3',
+}]);
 
-var obs_radio_buttons = new Observable([]);
-
-hashRegisterElements['bind_radio_buttons'].load_state(obs_radio_buttons);
-
-hashRegisterElements['bind_radio_buttons'].bind_value(obs_radio_buttons);
+var obs_radio_buttons = hashRegisterElements['bind_radio_buttons'].bind_value();
 
 
 setInterval(function() {
