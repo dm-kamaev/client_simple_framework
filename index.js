@@ -113,6 +113,9 @@ function Date_picker() {
 }
 MyFrm.extend_class(Date_picker);
 
+D.addEventListener('click', function (e) {
+  console.log(getTarget(e));
+});
 
 var input_add_bank = new Input_add_bank();
 var bank_list = new Bank_list(input_add_bank);

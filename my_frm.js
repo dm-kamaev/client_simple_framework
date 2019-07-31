@@ -111,6 +111,8 @@ MyFrm.register_events = function (hash_components) {
  */
 MyFrm.event_handler = function (event_name, hash_components) {
   return function (e) {
+    // disable bubbling, for fix problem with conflict component
+    e.stopPropagation();
     var t = getTarget(e);
     var action = t.getAttribute(MyFrm.DATA_ACTION_ATTRIBUTE);
 
