@@ -31,7 +31,7 @@ function Input_add_bank() {
         '<label for="">Добавить банк</label><br/>'+
         '<input id='+me.input_id+' class=input type="text" value=""/>'+
         '<p id='+me._error_id+' style=color:red></p>'+
-        '<button '+me.action('click->bank_list#add('+me.input_id+')')+' type=button>Add</button>'+
+        '<button '+me.action_click('bank_list.add('+me.input_id+')')+' type=button>Add</button>'+
       '</div>'
     );
   };
@@ -85,7 +85,7 @@ function Bank_list(input_add_bank) {
     getByID(this.get_mount_id()).innerHTML = (
       '<div>'+
         list.map(function(el) {
-          return '<p class=bank_name>'+el.name+' <span data-bank-id='+el.id+' '+me.action('click->bank_list#remove')+' class=cross>X</span></p>';
+          return '<p class=bank_name>'+el.name+' <span data-bank-id='+el.id+' '+me.action_click('bank_list.remove')+' class=cross>X</span></p>';
         }).join('')+
       '</div>'
     );
@@ -106,7 +106,7 @@ function Date_picker() {
   this.render = function () {
     getByID(this.get_mount_id()).innerHTML = (
       '<div>'+
-        '<button type="button" '+me.action('click->date_picker#not_exist')+'>Another module</button>'+
+        '<button type="button" '+me.action_click('date_picker.not_exist')+'>Another module</button>'+
       '</div>'
     );
   };

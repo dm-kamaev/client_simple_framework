@@ -9,11 +9,11 @@ MyFrm.logger = (MyFrm.DEBUG) ? console.log : function () {};
 
 /**
  * action - create data attribute
- * @param  {string} action - 'click->bank_list#add(1)'
- * @return {string} - 'data-my-frm-action=click->bank_list#add(1)'
+ * @param  {string} action - 'bank_list.add(1)'
+ * @return {string} - 'data-my-frm-action__click=bank_list.add(1)'
  */
-MyFrm.prototype.action = function (action) {
-  return MyFrm.DATA_ACTION_ATTRIBUTE+'="'+action+'"';
+MyFrm.prototype.action_click = function (action) {
+  return MyFrm.DATA_ACTION_ATTRIBUTE+'__click'+'="'+action+'"';
 };
 
 
@@ -111,23 +111,22 @@ MyFrm.register_events = function (hash_components) {
  */
 MyFrm.event_handler = function (event_name, hash_components) {
   return function (e) {
-    // disable bubbling, for fix problem with conflict component
-    e.stopPropagation();
     var t = getTarget(e);
-    var action = t.getAttribute(MyFrm.DATA_ACTION_ATTRIBUTE);
+    var action = t.getAttribute(MyFrm.DATA_ACTION_ATTRIBUTE+'__'+event_name);
+    console.log(MyFrm.DATA_ACTION_ATTRIBUTE+'__'+event_name, action);
 
     if (!action) {
       return;
     }
 
-    var parts = action.split('->');
-    var event = parts[0];
-    var class_name_and_method = parts[1];
-    if (event !== event_name) {
-      return;
-    }
+    // var parts = action.split('->');
+    // var event = parts[0];
+    // var class_name_and_method = parts[1];
+    // if (event !== event_name) {
+    //   return;
+    // }
 
-    parts = class_name_and_method.split('#');
+    var parts = action.split('.');
     var component_name = parts[0];
     var method_name = parts[1];
     var argv = [ e ];
@@ -147,6 +146,9 @@ MyFrm.event_handler = function (event_name, hash_components) {
     if (!component[method_name]) {
       return console.error('Not found method = '+component_name+'.'+method_name+' from component ', component);
     }
+
+    // disable bubbling, for fix problem with conflict component
+    e.stopPropagation();
     component[method_name].apply(component, argv);
   };
 };
